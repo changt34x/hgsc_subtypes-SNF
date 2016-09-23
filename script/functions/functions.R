@@ -1,0 +1,91 @@
+#####################################
+# FUNCTIONS
+#####################################
+
+silhouette_SimilarityMatrix<-function(group, similarity_matrix)
+{
+  similarity_matrix=as.matrix(similarity_matrix)
+  similarity_matrix<-(similarity_matrix+t(similarity_matrix))/2
+  diag(similarity_matrix)=0
+  normalize <- function(X) X / rowSums(X)
+  similarity_matrix<-normalize(similarity_matrix)
+  
+  n <- length(group)
+  if(!all(group == round(group))) stop("'integer")
+  cluster_id <- sort(unique(group <- as.integer(group)))
+  k <- length(cluster_id)
+  if(k <= 1 || k >= n)
+    return(NA)
+  doRecode <- (any(cluster_id < 1) || any(cluster_id > k))
+  if(doRecode)
+    group <- as.integer(fgroup <- factor(group))
+  cluster_id <- sort(unique(group))
+  
+  wds <- matrix(NA, n,3, dimnames =list(names(group), c("cluster","neighbor","sil_width")))  
+  for(j in 1:k)
+  { 
+    index <- (group == cluster_id[j])
+    Nj <- sum(index)
+    wds[index, "cluster"] <- cluster_id[j]
+    dindex <- rbind(apply(similarity_matrix[!index, index, drop = FALSE], 2,
+                          function(r) tapply(r, group[!index], mean)))
+    maxC <- apply(dindex, 2, which.max)
+    wds[index,"neighbor"] <- cluster_id[-j][maxC]
+    s.i <- if(Nj > 1) {
+      a.i <- colSums(similarity_matrix[index, index])/(Nj - 1)
+      b.i <- dindex[cbind(maxC, seq(along = maxC))]
+      ifelse(a.i != b.i, (a.i - b.i) / pmax(b.i, a.i), 0)
+    } else 0
+    wds[index,"sil_width"] <- s.i
+  }
+  attr(wds, "Ordered") <- FALSE
+  class(wds) <- "silhouette"
+  wds
+}
+
+# Determine specific silhouette widths for each dataset for each k
+RunSilhouette <- function(dataset, Name, clustermin, clustermax) {
+  # ~~~~~~~~~~~~~~
+  # Output silhouette width plots
+  #
+  # Args: 
+  # dataset: A gene expression matrix with genes as rows and samples as columns
+  # Name: The name of the eset 
+  # 
+  # Returns:
+  # Silhouette width plots
+  # 
+  # References:
+  # Way, G.P., Rudd, J., Wang, C., Hamidi, H., Fridley, L.B, Konecny, G., Goode, E., C.S., Doherty, J.A. (2016).
+  # Unpublished: Cross-population analysis of high-grade serious ovarian cancer does not support four subtypes.
+  # ~~~~~~~~~~~~~~
+  
+  dataExprs <- data.frame(t(dataset))
+  
+  dataDist <- dist(dataExprs)
+  
+  # Read in subtype groupings
+  membfile <- list.files(path = "output/groups", pattern = Name)
+  ClusterAssign <- read.csv(file = file.path("output", "groups", membfile), row.names = 1)
+  
+  # Perform silhouette width analyses
+  #Silhouette <- list()
+  #for(i in clustermin:clustermax) {
+  #  Silhouette[[i]] <- silhouette(as.numeric(paste(ClusterAssign[[1 + i - clustermin]])), dataDist)
+  #}
+  K2_sil <- silhouette(as.numeric(paste(ClusterAssign$K.2)), dataDist)
+  K3_sil <- silhouette(as.numeric(paste(ClusterAssign$K.3)), dataDist)
+  K4_sil <- silhouette(as.numeric(paste(ClusterAssign$K.4)), dataDist)
+  
+  # Output images
+  png(file.path("output","groups",paste(Name, "_Silhouette.png", sep="")), width = 1100, height = 800)
+  
+  # Get appropriate margins
+  par(mfrow = c(1, 3))
+  par(mar = c(2, 1.5, 1, 1.5))
+  par(cex.axis = 0.7, cex = 2, cex.main = 2)
+  plot(Silhouette[[clustermin]], main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato'), do.col.sort = T, do.n.k = F)
+  plot(Silhouette[[clustermin+1]], main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen'), do.col.sort = T, do.n.k = F)
+  plot(Silhouette[[clustermin+2]], main = "",  xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen', 'violet'), do.col.sort = T, do.n.k = F)
+  dev.off()
+}
