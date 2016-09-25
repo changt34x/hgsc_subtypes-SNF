@@ -43,6 +43,7 @@ ExpData <- list(Exp1, Exp2)
 ############################
 # 3. Silhouette Plots
 ############################
-Name <- paste("SNF_",DATA1,"-",DATA2,".csv",sep="")
+Name <- paste("SNF_",DATA1,"-",DATA2,sep="")
 
-RunSilhouette(ExpData[[2]], Name, 2, 4)
+RunSilhouette(ExpData[[1]], Name, 1)
+RunSilhouette(ExpData[[2]], Name, 2)

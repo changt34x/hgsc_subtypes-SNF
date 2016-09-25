@@ -43,8 +43,8 @@ silhouette_SimilarityMatrix<-function(group, similarity_matrix)
   wds
 }
 
-# Determine specific silhouette widths for each dataset for each k
-RunSilhouette <- function(dataset, Name, clustermin, clustermax) {
+# Determine specific silhouette widths for each dataset for each k=2 to k=4
+RunSilhouette <- function(dataset, Name, incr) {
   # ~~~~~~~~~~~~~~
   # Output silhouette width plots
   #
@@ -65,27 +65,69 @@ RunSilhouette <- function(dataset, Name, clustermin, clustermax) {
   dataDist <- dist(dataExprs)
   
   # Read in subtype groupings
-  membfile <- list.files(path = "output/groups", pattern = Name)
+  membfile <- list.files(path = "output/groups", pattern = paste(Name, ".csv", sep=""))
   ClusterAssign <- read.csv(file = file.path("output", "groups", membfile), row.names = 1)
   
   # Perform silhouette width analyses
-  #Silhouette <- list()
-  #for(i in clustermin:clustermax) {
-  #  Silhouette[[i]] <- silhouette(as.numeric(paste(ClusterAssign[[1 + i - clustermin]])), dataDist)
-  #}
   K2_sil <- silhouette(as.numeric(paste(ClusterAssign$K.2)), dataDist)
   K3_sil <- silhouette(as.numeric(paste(ClusterAssign$K.3)), dataDist)
   K4_sil <- silhouette(as.numeric(paste(ClusterAssign$K.4)), dataDist)
   
   # Output images
-  png(file.path("output","groups",paste(Name, "_Silhouette.png", sep="")), width = 1100, height = 800)
+  png(file.path("output","figures",paste(Name, incr, "_Silhouette.png", sep="")), width = 1100, height = 800)
   
   # Get appropriate margins
   par(mfrow = c(1, 3))
   par(mar = c(2, 1.5, 1, 1.5))
   par(cex.axis = 0.7, cex = 2, cex.main = 2)
-  plot(Silhouette[[clustermin]], main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato'), do.col.sort = T, do.n.k = F)
-  plot(Silhouette[[clustermin+1]], main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen'), do.col.sort = T, do.n.k = F)
-  plot(Silhouette[[clustermin+2]], main = "",  xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen', 'violet'), do.col.sort = T, do.n.k = F)
+  
+  plot(K2_sil, main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato'), do.col.sort = T, do.n.k = F)
+  plot(K3_sil, main = "", xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen'), do.col.sort = T, do.n.k = F)
+  plot(K4_sil, main = "",  xlab = "", sub = "", col = c('skyblue1', 'tomato', 'springgreen', 'violet'), do.col.sort = T, do.n.k = F)
   dev.off()
+}
+
+CorMatrixOrder <- function (DataSet, ClusterMemb, ClusterColumn) {  
+  # ~~~~~~~~~~~~~~
+  # Outputs a dataframe of cluster membership for k = 3 and k = 4 using Global MAD genes
+  #
+  # Args: 
+  # DataSet: A gene expression matrix with genes as rows and samples as columns
+  # ClusterMemb: a dataframe with cluster assignments
+  # ClusterColumn: which column the cluster memberships are stored
+  # 
+  # Returns:
+  # The order by which the samples in each correlation matrix heatmap are plotted
+  # ~~~~~~~~~~~~~~
+  
+  # Initialize an order for the correlation matrix
+  DataSet_order <- c()
+  
+  # Determine the number of unique clusters in the given cluster column
+  uniqueClusters <- length(unique(ClusterMemb[ ,ClusterColumn]))
+  
+  # For each cluster, perform hierarchical clustering to determine the order, 
+  # within each cluster assignment, for presentation in the correlation matrix
+  for (clus in 1:uniqueClusters) {
+    # Select the gene expression of the samples with the cluster assignment
+    cluster.subset <- DataSet[ ,ClusterMemb[ ,ClusterColumn] == clus]
+    
+    # Observe the distance matrix for these samples
+    cluster.dist <- dist(t(cluster.subset))
+    
+    # Perform heirarchical clustering on this distance matrix
+    cluster.hclust <- hclust(cluster.dist)
+    
+    # Order the subset of samples based on the order resulting from the heirarchical clustering
+    cluster.order <- cluster.subset[ ,cluster.hclust$order]
+    cluster.order <- as.matrix(cluster.order)
+    
+    # Reorder the gene expression matrices based on first the k means clusters and next based on 
+    # the heirarchical clusters
+    DataSet_order <- cbind(DataSet_order, cluster.order)
+  }
+  
+  # Obtain the correlation matrix and return
+  corReady <- cor(DataSet_order)
+  return(corReady)
 }

@@ -43,3 +43,10 @@ R --no-save --args $CLUSTERMIN $CLUSTERMAX $K $SIGMA $T $DATA1 $DATA2 \
 ################
 R --no-save --args $CLUSTERMIN $CLUSTERMAX $ITERMAX $STARTS $DATA1 $DATA2 \
 < script/fit.R
+
+################
+# Part 3:
+# Correlation Matrix
+################
+R --no-save --args $CLUSTERMIN $CLUSTERMAX $DATA1 $DATA2 \
+< script/correlationMatrix.R
